@@ -2,10 +2,17 @@
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 
-const summary = ref([]);
+interface SummaryItem {
+  doc_id: number;
+  summary_json: string;
+  validation_status: string;
+}
+
+const summary = ref<SummaryItem[]>([]);
 const editingId = ref<number | null>(null);
 const editingText = ref('');
-const checkedStatus = ref(['pending', 'correct']); // default: แสดงทุกสถานะ
+const checkedStatus = ref(['pending', 'correct']);
+const isMobile = ref(false);
 
 onMounted(async () => {
   await fetchSummary();
@@ -54,6 +61,12 @@ const filteredSummary = computed(() => {
   if (checkedStatus.value.length === 0) return [];
   return summary.value.filter(item => checkedStatus.value.includes(item.validation_status));
 });
+
+const showAll = ref(true);
+
+function toggleShowAll() {
+  showAll.value = !showAll.value;
+}
 </script>
 
 <template>
@@ -68,10 +81,13 @@ const filteredSummary = computed(() => {
       <input type="checkbox" value="correct" v-model="checkedStatus" />
       แก้ไขแล้ว
     </label>
+    <button class="toggle-all-btn" @click="toggleShowAll">
+      {{ showAll ? 'ซ่อนข้อมูลทั้งหมด' : 'แสดงข้อมูลทั้งหมด' }}
+    </button>
   </div>
   <div class="editor-layout">
-    <div class="list-panel">
-      <ul>
+    <div class="list-panel" v-if="showAll">
+      <ul v-if="!isMobile">
         <li v-for="item in filteredSummary" :key="item.doc_id" :class="{ active: editingId === item.doc_id }"
           @click="editItem(item)">
           <span>doc_id: {{ item.doc_id }}</span>
@@ -83,9 +99,23 @@ const filteredSummary = computed(() => {
           </span>
         </li>
       </ul>
+      <div v-else >
+        <ul v-if="!isMobile">
+          <li v-for="item in filteredSummary" :key="item.doc_id" :class="{ active: editingId === item.doc_id }"
+            @click="editItem(item)">
+            <span>doc_id: {{ item.doc_id }}</span>
+            <span style="margin-left:10px;" :style="{
+              color: item.validation_status === 'pending' ? '#e53935' : '#388e3c',
+              fontWeight: 'bold'
+            }">
+              {{ item.validation_status }}
+            </span>
+          </li>
+        </ul>
+      </div>
     </div>
     <div class="edit-panel">
-      <textarea v-model="editingText" rows="15" cols="50" placeholder="เลือกหัวข้อทางซ้ายเพื่อแก้ไข..."
+      <textarea v-model="editingText" rows="15" cols="50" placeholder="แสดงข้อมูลที่ต้องการแก้ไข..."
         :disabled="editingId === null"></textarea>
       <div v-if="editingId !== null" class="edit-actions">
         <button @click="saveEdit" class="save-button">บันทึก</button>
@@ -98,15 +128,16 @@ const filteredSummary = computed(() => {
 <style scoped>
 .editor-layout {
   display: flex;
-  gap: 20px;
+  gap: 5px;
+  width: 100%;
   justify-content: center;
   align-items: flex-start;
-  margin-top: 30px;
+  margin-top: 10px;
   margin: 0;
 }
 
 .list-panel {
-  width: 550px;
+  width: 500px;
   max-height: 500px;
   overflow-y: auto;
 }
@@ -146,7 +177,7 @@ li {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  width: 500px;
+  width: 450px;
 }
 
 li.active {
@@ -168,6 +199,8 @@ li:hover {
   font-family: cursive, sans-serif;
   font-weight: bold;
   text-align: center;
+  margin: 0;
+  padding: 10px;
 }
 
 .save-button {
@@ -235,5 +268,42 @@ li:hover {
 
 .filter-bar input[type="checkbox"]:hover {
   box-shadow: 0 0 0 2px #b2ebf2;
+}
+
+@media (max-width: 900px) {
+  .editor-layout {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .list-panel,
+  .edit-panel {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  li {
+    width: 95%;
+  }
+
+  textarea {
+    min-height: 450px;
+  }
+}
+
+.toggle-all-btn {
+  margin-left: 16px;
+  padding: 7px 16px;
+  border: none;
+  border-radius: 4px;
+  background: #00bcd4;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.toggle-all-btn:hover {
+  background: #0097a7;
 }
 </style>
